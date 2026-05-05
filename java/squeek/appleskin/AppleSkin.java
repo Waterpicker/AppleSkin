@@ -36,6 +36,8 @@ public class AppleSkin
 			net.neoforged.fml.config.ModConfig.Type.CLIENT,
 			ModConfig.SPEC
 		);
+		modEventBus.addListener(ModConfig::onConfigReloading);
+		modEventBus.addListener(ModConfig::onConfigLoading);
 		if (FMLEnvironment.dist.isClient())
 		{
 			container.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);

@@ -264,49 +264,67 @@ public class HUDOverlayHandler
 
 	public static void drawSaturationOverlay(float saturationGained, float saturationLevel, Player player, GuiGraphics guiGraphics, int right, int top, float alpha, int guiTicks)
 	{
-		if (saturationLevel + saturationGained < 0)
-			return;
-
-		enableAlpha(alpha);
+		if (saturationLevel + saturationGained < 0) return;
 
 		float modifiedSaturation = Math.max(0, Math.min(saturationLevel + saturationGained, 20));
+		if (modifiedSaturation <= 0) return;
 
 		int startSaturationBar = 0;
 		int endSaturationBar = (int) Math.ceil(modifiedSaturation / 2.0F);
-
-		// when require rendering the gained saturation, start should relocation to current saturation tail.
 		if (saturationGained != 0)
 			startSaturationBar = (int) Math.max(saturationLevel / 2.0F, 0);
 
+		var offsets = barOffsets.foodBarOffsets(guiTicks, player);
 		int iconSize = 9;
 
-		var offsets = barOffsets.foodBarOffsets(guiTicks, player);
+		// Color setup from 1.20.1
+		int[] colors = ModConfig.SATURATION_HUD_OVERLAY_COLORS_CACHE;
+		float saturationPerLayer = 20f;
+		int fullLayers = (int) (modifiedSaturation / saturationPerLayer);
+		int color = fullLayers > 0 ?
+				((int) (alpha * 255) << 24) | colors[(fullLayers - 1) % colors.length] :
+				((int) (alpha * 255) << 24) | colors[0 % colors.length];
+
+		float r = ((color >> 16) & 255) / 255f;
+		float g = ((color >> 8) & 255) / 255f;
+		float b = (color & 255) / 255f;
+		float a = ((color >> 24) & 255) / 255f;
+
+		enableAlpha(alpha);
+		guiGraphics.setColor(r, g, b, a);
+
 		for (int i = startSaturationBar; i < endSaturationBar; ++i)
 		{
-			// gets the offset that needs to be render of icon
-			IntPoint offset = i < offsets.size() ? offsets.get(i) : new IntPoint();
-			if (offset == null)
-				continue;
+			IntPoint offset = i < offsets.size() ? offsets.get(i) : null;
+			if (offset == null) continue;
 
 			int x = right + offset.x;
 			int y = top + offset.y;
 
-			int v = 0;
-			int u = 0;
-
 			float effectiveSaturationOfBar = (modifiedSaturation / 2.0F) - i;
-
+			int u = 0;
 			if (effectiveSaturationOfBar >= 1)
 				u = 3 * iconSize;
-			else if (effectiveSaturationOfBar > .5)
+			else if (effectiveSaturationOfBar > 0.5)
 				u = 2 * iconSize;
-			else if (effectiveSaturationOfBar > .25)
+			else if (effectiveSaturationOfBar > 0.25)
 				u = 1 * iconSize;
 
-			guiGraphics.blit(TextureHelper.MOD_ICONS, x, y, u, v, iconSize, iconSize);
+			guiGraphics.blit(TextureHelper.MOD_ICONS, x, y, u, 0, iconSize, iconSize);
 		}
 
+		guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
 		disableAlpha(alpha);
+
+		// Text overlay from 1.20.1
+		if (ModConfig.SHOW_SATURATION_TEXT_OVERLAY.get())
+		{
+			Minecraft mc = Minecraft.getInstance();
+			String text = modifiedSaturation % saturationPerLayer == 0 ?
+					"" + fullLayers : "" + (fullLayers + 1);
+			int textColor = ((int) (alpha * 255) << 24) | 0xFFFFFF;
+			guiGraphics.drawString(mc.font, text, right + 2, top + 1, textColor, true);
+		}
 	}
 
 	public static void drawHungerOverlay(int hungerRestored, int foodLevel, Player player, GuiGraphics guiGraphics, int right, int top, float alpha, boolean useRottenTextures, int guiTicks)
